@@ -1,4 +1,9 @@
-import common from "common";
+import common                       from "common";
+import ShowAlertWindow              from 'alertwindow/showalertwindow';
+import ShowConfirmWindow            from 'confirmwindow/showconfirmwindow';
+
+import NativeBridge                 from 'nativebridge';
+const nativeBridge =                new NativeBridge();
 
 define(function(require, exports, module) {
 
@@ -34,7 +39,6 @@ define(function(require, exports, module) {
             }
             return format;
         }
-
 
         //timeoutFun 空函数用来填充某些逻辑
         let timeoutFun = ()=>false;
@@ -89,10 +93,7 @@ define(function(require, exports, module) {
                 $.isPageMoving = true;
 
                 // 如果转场动画为none或者设备为android2.x|3.x
-                if (_this.type == "none") {
-                    this.end();
-                    return false;
-                }
+                if (_this.type == "none") return this.end();
 
                 // 如果有高亮，添加
                 if (_this.hover) {
@@ -214,6 +215,9 @@ define(function(require, exports, module) {
 
         };
 
+         //delay 延迟触发函数，用来保存前一个延迟函数
+         var oldInterval;
+
         $.extend($, {
 
             /*get device system type name*/
@@ -245,6 +249,9 @@ define(function(require, exports, module) {
                 return field < 0 ? " ttjj_green" : field == 0 ? " ttjj_black" : " ttjj_red"; 
             },
 
+            substringBankCard(str){
+                return str.length > 4 ? str.substring(str.length - 4,str.length) : str;
+            },
 
             setTradeServer(tempZone){
                 switch(common.environment){
@@ -274,21 +281,70 @@ define(function(require, exports, module) {
                 }
             },
 
-            resolveRejectError(error){
-                //let callback = ()=>false;
-                
-                //let tempErrorMsg = error && error["ErrorMessage"] || error["CodeMessage"] || error["ErrMsg"] ||  common.helpTxt["rejectTip"];
-                
-                /* if(error["ErrorCode"] == "103"){
-                    nativeBridge.backToLogin();
-                    return false;
-                } */
 
-                //requestModel.recordError(tempData["requestUrl"],tempData["requestParams"],tempData["responseData"]);
+            resolveRejectError(error,callback=()=>false){
                 
-                //ShowAlert(true,tempErrorMsg,callback);
+                const tempErrorMsg = error && error["ErrorMessage"] || error["CodeMessage"] || error["ErrMsg"] ||  common.helpTxt["rejectTip"];
+                const tempErrorCode = error["ErrorCode"] + "";
+                switch(tempErrorCode){
+                    case "1004":
+                    case "1006":
+                        return nativeBridge.backToLogin(tempErrorCode,tempErrorMsg);
+                        break;
+                    case "504":
+                        return $.getAppVersion() >= "5.2.0" ? ShowConfirmWindow(true,tempErrorMsg,[{txt:"忘记密码",callback:()=>nativeBridge.forgetPassword()},{ txt:"重试",txtColor:"#f40",callback:callback }],' '):ShowAlertWindow(true,tempErrorMsg,' ');
+                        break;
+                    case "505":
+                        return $.getAppVersion() >= "5.2.0" ? ShowConfirmWindow(true,tempErrorMsg,[{txt:"取消",callback:()=>nativeBridge.backToLogin(tempErrorCode,tempErrorMsg)},{txt:"找回密码",txtColor:"#f40",callback:()=>nativeBridge.forgetPassword()}],' ') : ShowAlertWindow(true,"交易密码已连续输错5次，限制账户登录30分钟。"," ",()=>nativeBridge.backToLogin(tempErrorCode,tempErrorMsg));
+                    break;
+                    default:
+                        return ShowAlertWindow(true,tempErrorMsg);
+                        break;
+                }
+            },
+
+            changeBrowserLink(targetId,tempLastPage,parameters){
+                location.href = location.origin + location.pathname + "#goPage=" + targetId + "&lastPage=" + tempLastPage + parameters;
+            },
+
+            saveNativeParam(defaultPageName){
+        
+                const { uid:tempUid,v:tempVersion,lastPage:tempLastPage,zone:tempZone,
+                    ctoken:tempCToken,utoken:tempUToken,deviceid:tempdDeviceId,goPage } = common.nativeParam;
+        
+                const { lastPageKey,versionKey,uidKey,cTokenKey,uTokenKey,deviceIdKey,zoneKey,pageKey } = common.cacheKeys;
+        
+                if(tempLastPage) sessionStorage.setItem(lastPageKey,tempLastPage);
+        
+                if(tempVersion) sessionStorage.setItem(versionKey,tempVersion);
                 
-                //return error["ErrorCode"] == "103" ? nativeBridge.backToLogin() : ShowAlert(true,tempErrorMsg + tempLink,callback);
+                if(tempUid) sessionStorage.setItem(uidKey,tempUid);
+                
+                if(tempCToken) sessionStorage.setItem(cTokenKey,tempCToken);
+        
+                if(tempUToken) sessionStorage.setItem(uTokenKey,tempUToken);
+        
+                if(tempdDeviceId) sessionStorage.setItem(deviceIdKey,tempdDeviceId);
+        
+                if(tempZone) this.setServerUrl(tempZone);
+        
+                const tempCacheKey = pageKey + "-" + (goPage || defaultPageName || "" );
+                
+                return sessionStorage.setItem(tempCacheKey,JSON.stringify(common.nativeParam));        
+            },
+
+            /*set server url*/
+            setServerUrl(tempZone) {
+                
+                common.serverList["tradeServer"] =              $.setTradeServer(tempZone);
+                common.serverList["highLevelServer"] =          $.setHighLevelServer(tempZone);
+                
+                common.serverList["marketServer"] =             common.serverList[common.environment]["marketServer"];
+                common.serverList["commonJsUrl"] =              common.serverList[common.environment]["commonJsUrl"];
+                
+                sessionStorage.setItem(common["cacheKeys"].zoneKey,tempZone);
+                
+                return false;
             },
             
             fmoney(s, n) {
@@ -328,6 +384,35 @@ define(function(require, exports, module) {
                 return d < 0 ? (Math.ceil(Number(d) * Math.pow(10,n) - 0.0001) / Math.pow(10,n)).toFixed(n) : (Math.floor(Number(d) * Math.pow(10,n) + 0.0001) / Math.pow(10,n)).toFixed(n);
             },
 
+            min : function (cpb, cpc) {
+                var result = true;
+                var min = parseFloat(cpb);
+                var len = parseFloat(cpc);
+    
+                if (len < min) {
+                    result = false;
+                }
+                return result;
+            },
+    
+            max : function (cpb, cpc) {
+                var result = true;
+                var max = parseFloat(cpb);
+                var len = parseFloat(cpc);
+    
+                if (len > max) {
+                    result = false;
+                }
+                return result;
+            },
+
+            isPrice(price) {
+                var regex = /^(([0-9]+\.[0-9]*[1-9][0-9]*)|([0-9]*[1-9][0-9]*\.[0-9]+)|([0-9]*[1-9][0-9]*)|([0-9]*[1-9][0-9]*\.))$/;
+                var xiaoshuRegex = /^-?\d+\.?\d{0,2}$/;
+    
+                return regex.test(price) && xiaoshuRegex.test(price) ? true : false;
+            },
+
             isEmpty(value, allowEmptyString){
                 return (value === null) || 
                 (value === undefined) || 
@@ -335,6 +420,22 @@ define(function(require, exports, module) {
                 (this.isArray(value) && value.length === 0) || 
                 (value == "null") || 
                 (value == "--");
+            },
+
+            delay:function(delay,newFn,newScope,newArgs) {
+                var me = this;
+                me.updateInterval(null,oldInterval);
+                //create the callback method for this delayed task
+                var call = function() {
+                    newFn.apply(newScope,newArgs || []);
+                    me.updateInterval(null,oldInterval);
+                };
+    
+                oldInterval = setInterval(call, delay);
+            },
+    
+            updateInterval:function(newInterval, oldInterval) {
+                if (oldInterval) clearInterval(oldInterval);
             },
 
             simplePageLink(target,current,parameters = ""){
@@ -352,13 +453,9 @@ define(function(require, exports, module) {
             mergeJsonObject(jsonbject1, jsonbject2){
                 let resultJsonObject={};
                 
-                for(let attr in jsonbject1){
-                    resultJsonObject[attr] = jsonbject1[attr];
-                }
+                for(let attr in jsonbject1) resultJsonObject[attr] = jsonbject1[attr];
 
-                for(let attr in jsonbject2){
-                    resultJsonObject[attr] = jsonbject2[attr];
-                }
+                for(let attr in jsonbject2) resultJsonObject[attr] = jsonbject2[attr];
                 
                 return resultJsonObject;
             },
@@ -385,6 +482,11 @@ define(function(require, exports, module) {
 
             getZone(){
                 return sessionStorage.getItem(common.cacheKeys["zoneKey"]) || common.nativeParam["zone"];
+            },
+
+            getNativeParam:function(goPage){
+                const tempNativeParamInfo = sessionStorage.getItem((common.cacheKeys["pageKey"] + "-" + goPage));
+                return tempNativeParamInfo ? JSON.parse(tempNativeParamInfo) : common.nativeParam;
             },
 
             /*get app version*/

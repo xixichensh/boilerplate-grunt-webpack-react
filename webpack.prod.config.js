@@ -1,34 +1,74 @@
+
 var path = require('path');
 var resolve = path.resolve;
 var webpack = require('webpack');
+var HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
     
-    devtool:'cheap-module-eval-source-map',
-	
+    devtool:false,
+
     entry:{
-        "index":['babel-polyfill','./index']
+        "index":['./index'],
+        "vendor":['babel-polyfill','jquery','md5','base64','ttfund','common','requestmodel','routerhelper']
     },
-	
+
     output: {
         path: path.resolve(__dirname, 'dist'),//打包后的文件存放的地方
-        filename: '[name].js', //打包后输出文件的文件名
-        publicPath: "/dist/"
+        filename: '[name]-[hash:5].min.js', //打包后输出文件的文件名
+        publicPath: "./"
     },
 
-    devServer:{
-        hot:true
-    },
 
     plugins: [
-        new webpack.HotModuleReplacementPlugin(),
+        new webpack.optimize.UglifyJsPlugin({
+            comments: false,        //去掉注释
+            compress: {
+                warnings: false    //忽略警告,要不然会有一大堆的黄色字体出现……
+            }
+        }),
 
         new webpack.ProvidePlugin({
+            'Promise':      'es6-promise',
+            'fetch':        'imports-loader?this=>global!exports-loader?global.fetch!whatwg-fetch',
             "React":        'react',
             "ReactDOM":     'react-dom',
             "Component":    ['react', 'Component'],
             "PropTypes":    'prop-types'
+        }),
+
+        new webpack.DefinePlugin({
+            'process.env': {
+                NODE_ENV: JSON.stringify('production')
+            }
+        }),
+
+        new HtmlWebpackPlugin({
+            template: __dirname + "/index.tpl.html",
+            minify: {
+                removeComments: true,
+                collapseWhitespace: true,
+                removeRedundantAttributes: true,
+                useShortDoctype: true,
+                removeEmptyAttributes: true,
+                removeStyleLinkTypeAttributes: true,
+                keepClosingSlash: true,
+                minifyJS: true,
+                minifyCSS: true,
+                minifyURLs: true
+            },
+            filename: 'index.html',
+            //要把script插入到标签里
+            inject: 'body',
+            chunks:["vendor","index"]
+        }),
+
+
+        new webpack.optimize.CommonsChunkPlugin({
+                name: "vendor",
+                minChunks: Infinity,
         })
+
     ],
     
     module: {
@@ -36,9 +76,8 @@ module.exports = {
             {
                 test: /\.(less|css)$/,
                 exclude: /node_modules/,
-                use: [
+                use:[
                     'style-loader',
-
                     {
                         loader: 'css-loader?sourceMap',
                         options: {
@@ -48,9 +87,7 @@ module.exports = {
                             importLoaders: 2
                         }
                     },
-                    
                     { loader: 'postcss-loader', options: { sourceMap: true } },
-
                     'less-loader?sourceMap'
                 ]
             },
@@ -78,12 +115,11 @@ module.exports = {
                     }
                 ]
             }
-
         ]
     },
 
     resolve: {
-        extensions: ['.js','.css','.less','.scss'],
+        extensions: ['.js','.css','.less'],
         modules: ['node_modules','components','views','resources','plugins','libs'],
         alias: {
             'jquery':           resolve(__dirname, 'libs/zepto'),
@@ -95,6 +131,8 @@ module.exports = {
             'requestmodel':     resolve(__dirname, 'plugins/requestmodel'),
             'nativebridge':     resolve(__dirname, 'plugins/nativebridge')
         }
-    }
+    },
+
+    recordsOutputPath: path.resolve(__dirname, 'dist',"records.json")
 
 };

@@ -18,8 +18,8 @@ var server = new WebpackDevServer(compiler, {
 	}
 });
 
-server.listen(3104, 'localhost', function(err, result) {
+server.listen(3105, 'localhost', function(err, result) {
 	if (err) return console.log(err);
 	
-	console.log('Listening at http://localhost:3104/');
+	console.log('Listening at http://localhost:3105/');
 });

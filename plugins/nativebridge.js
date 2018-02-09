@@ -1,26 +1,33 @@
 import common               from 'common';
-import { fail } from 'assert';
 
 class NativeBridge{
     
 	constructor(){
-        if($("#ttfund-js-bridge").length > 0) return false;
+        if($("#ttfund-js-bridge").length > 0)
+            return false;
 
         let _script = document.createElement('iframe');
         _script.setAttribute('id', "ttfund-js-bridge");
         _script.setAttribute('style',"position:absolute;bottom:1000px;");
-        return document.getElementsByTagName('body')[0].appendChild(_script);
+        document.getElementsByTagName('body')[0].appendChild(_script);
     }
 
     loginStandard(callback){
-        if(!$.isInApp()) return false;
-        
         const _this = this;
 
-        return _this.getNativeLoginParam((resultData)=>{
-            if(!resultData["uid"]) return _this.tradeLogin();
+        if(!$.isInApp()) return false;
+        
+        _this.getNativeLoginParam((resultData)=>{
+
+            if(!resultData["uid"]){
+                _this.tradeLogin();
+                return false;
+            }
+            
             callback();
+
         });
+
     }
 
     setLoginInfo(resultData){
@@ -36,20 +43,21 @@ class NativeBridge{
 
         $.saveNativeParam();
 
-        return common.marketCommonParams = {
-                    CustomerNo :    $.getUserId(),
-                    CToken:         $.getCToken(),
-                    UToken:         $.getUToken(),
-                    MobileKey:      $.getDeviceId(),
-                    ServerVersion:  $.getAppVersion(),
-                    deviceid:       $.getDeviceId(),
-                    product:        "EFund",
-                    plat:           "Iphone"
-                };
+        common.marketCommonParams = {
+            CustomerNo :    $.getUserId(),
+            CToken:         $.getCToken(),
+            UToken:         $.getUToken(),
+            MobileKey:      $.getDeviceId(),
+            ServerVersion:  $.getAppVersion(),
+            deviceid:       $.getDeviceId(),
+            product:        "EFund",
+            plat:           "Iphone"
+        };
     }
 
     getNativeLoginParam(callback){
-        if(!$.isInApp()) return false;
+        if(!$.isInApp())
+            return false;
 
         const _this = this;
 
@@ -57,47 +65,49 @@ class NativeBridge{
 
             window.getNativeLoginCallback = (resultData)=>{
                 
-                if(resultData["uid"]) _this.setLoginInfo(resultData);
-                callback(resultData);
+                if(resultData["uid"])
+                    _this.setLoginInfo(resultData);
 
+                callback(resultData);
             };
 
             let loginurl = 'emfundapp:nativeLogin({"callbackMethodName": "window.getNativeLoginCallback"})';
-            return document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
+            document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
 			
 		});
 
     };
 
     tradeLogin(){
-        if(!$.isInApp()) return false;
+        if(!$.isInApp())
+            return false;
 
         return new Promise(function(resolve,reject){
-
             const loginurl = 'emfundapp:tradeLogin({"callbackMethodName": ""})';
             document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-            return setTimeout(()=>resolve("ok"),0);
-        
-        });
+            setTimeout(()=>resolve("ok"),0);
+		});
+
     }
 
     changeTitle(event){
-        if(!$.isInApp()) return false;
+        if(!$.isInApp())
+            return false;
 
         return new Promise(function(resolve,reject){
             
             window.nativeBack = function(resultData){
-                let callback = event && event["leftCallback"] || (()=>history.back());
+                let callback = event && event["leftCallback"] ||    (()=>history.back());
                 callback();
             };
 
             window.nativeShare = function(resultData){
-                let callback = event && event["rightCallback"] || (()=>false);
+                let callback = event && event["rightCallback"] ||   (()=>false);
                 callback();
 		    };
 
             window.headinfocallback = function(resultData){
-                let callback = event && event["shareCallback"] || (()=>false);
+                let callback = event && event["shareCallback"] ||   (()=>false);
                 callback();
             };
 
@@ -106,153 +116,149 @@ class NativeBridge{
             event["rightText"] + '","event": " window.nativeShare()","vifylogin": ""})';
             
             document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-            return setTimeout(()=>resolve("ok"),0);
+            setTimeout(()=>resolve("ok"),0);
 
 		});
 
     }
 
-    configShare(tempTitle,tempContent,tempImgUrl,tempUrl){
+    configShare(tempTitle,tempContent,tempImgUrl){
 
         if(!$.isInApp()){
-            return $.initWeixinShare({
-                        "title":    tempTitle,
-                        "content":  tempContent,
-                        "url":      location.href,
-                        "imgUrl":   tempImgUrl
-                    });
+            $.initWeixinShare(
+                {
+                    "title":    tempTitle,
+                    "content":  tempContent,
+                    "url":      location.href,
+                    "imgUrl":   tempImgUrl
+                }
+            );
+            return false;
         }
+            
         
         return new Promise(function(resolve,reject){
             
-            const loginurl =  'emfundapp:wx_shareInfo({"Id":0,"Name":"0","Title":"'+ tempTitle + '","Url":"","HasWx":"true","NeedLogin":false,"WxTitle":"","WxContent":"' + tempContent + '","WxUrl":"' + encodeURIComponent(tempUrl) + '","WxImage":"'+ encodeURIComponent(tempImgUrl) +'","WxBackUrl":"","hideuid":"true"})';
+            const tempUrl = $.replaceHtmlFilePath("index") + "?accountId=" + $.getAccountId() + "&goPage=indexView"; 
+            const loginurl =  'emfundapp:wx_shareInfo({"Id": 0,"Name": "0","Title": "'+ tempTitle + '","Url": "","HasWx": "true","NeedLogin": false, "WxTitle": "","WxContent": "' + tempContent + '","WxUrl": "' + encodeURIComponent(tempUrl) + '","WxImage": "'+ encodeURIComponent(tempImgUrl) +'","WxBackUrl": "","hideuid":"true"})';
             
             document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-            return setTimeout(()=>resolve("ok"),0);
+            setTimeout(()=>resolve("ok"),0);
 
         });
     }
 
     backToNative(){
-        if(!$.isInApp()) return false;
 
         return new Promise(function(resolve,reject){
             
             const loginurl = 'emfundapp:backpreviouspage({"callbackMethodName": ""})';
             document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-            return setTimeout(()=>resolve("ok"),0);
+            setTimeout(()=>resolve("ok"),0);
 
 		});
     }
 
     notityNativeAccountState(accoutId,state){
-        if(!$.isInApp()) return false;
+        if(!$.isInApp())
+            return false;
 
         return new Promise(function(resolve,reject){
             
             const loginurl = 'emfundapp:subscribestatechanged({"cfhId": "'+ accoutId +'","state":"' + state + '"})';
             document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-            return setTimeout(()=>resolve("ok"),0);
+            setTimeout(()=>resolve("ok"),0);
 
         });
         
     }
 
     shareApp(){
-        if(!$.isInApp()) return false;
+        if(!$.isInApp())
+            return false;
 
         return new Promise(function(resolve,reject){
 
             const loginurl = 'emfundapp:ttjj-huodong-weixin-share';
             document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-            return setTimeout(()=>resolve("ok"),0);
+            setTimeout(()=>resolve("ok"),0);
 
 		});
     }
 
 
-    backToLogin(){
+    backToLogin(errorCode,errorMsg){
         if(!$.isInApp()) return false;
 
         return new Promise(function(resolve,reject){
-            
-            const loginurl = 'emfundapp:backtologin({"callbackMethodName": ""})';
+            const loginurl = 'emfundapp:backtologin({"ErrorCode":"' + errorCode + '","FirstError":"' + errorMsg + '","callbackMethodName": ""})';
             document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-            return setTimeout(()=>resolve("ok"),0);
-
+            setTimeout(()=>resolve("ok"),0);
 		});
     }
  
     openNewWindowForNative(event) {
         const newUrl = event["url"];
+
         if(!newUrl) return false;
-        if(!$.isInApp()) return location.href = newUrl;
+
+        if(!$.isInApp()){
+            location.href = newUrl;
+            return false;
+        }
             
         const openUrl = 'emfundapp:gonewpage({"oldwinrelease":false,"url":"' + newUrl + '"})';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",openUrl);
+        document.getElementById("ttfund-js-bridge").setAttribute("src",openUrl);
     }
 
     openNaiveNewsDetail(code,type=10){
-        if(!$.isInApp()) return false;
+        if(!$.isInApp())
+            return false;
 
         const tempLink =  'emfundapp:newsdetail({"newsid":"' + code + '","type":"'+ type +'"})';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
+        document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
     }
 
     openCallMenu(){
-        if(!$.isInApp()) return false;
-
         const tempLink =  'emfundapp:callnativephone({"shareInfo":"95021,400-9918-918"})';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
+        document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
     }
 
     openFeedback(){
-        if(!$.isInApp()) return false;
-
         const tempLink =  'emfundapp:ttjj-feedback';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
+        document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
     }
 
-    openFundDetail(fundCode,fundName=""){
-        if(!$.isInApp()) return false;
-
+    openFundDetail(fundCode,fundName){
         const tempLink =  "emfundapp:ttjj-funddetail?name=" + fundName + "&id=" + fundCode;
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
+        document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
     }
 
-    goNativeBuyFund(fundName="",fundCode){
-        if(!$.isInApp()) return false;
-
+    goNativeBuyFund(fundName,fundCode){
         const tempLink =  "emfundapp:ttjj-normal-buy?name=" + fundName + "&id=" + fundCode;
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
+        document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
     }
 
     getNativePassportLoginParam(callback){
-        if(!$.isInApp()) return false;
 
         window.nativePassportLoginCallback = (resultData)=>callback(resultData);
-        const loginurl = 'emfundapp:nativepassportlogin({"callbackMethodName": "window.nativePassportLoginCallback"})';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
-    }
+        let loginurl = 'emfundapp:nativepassportlogin({"callbackMethodName": "window.nativePassportLoginCallback"})';
+        document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
+        
+    };
         
     passportLogin(){
-        if(!$.isInApp()) return false;
-
-        const loginurl = 'emfundapp:passportlogin({"callbackMethodName":""})';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
+        const loginurl = 'emfundapp:passportlogin({"callbackMethodName": ""})';
+        document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
     }
 
     /* 忘记密码短链 */
     forgetPassword(){
-        if(!$.isInApp()) return false;
-
-        const loginurl = 'emfundapp:findfundpwd({"callbackMethodName":""})';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
+        const loginurl = 'emfundapp:findfundpwd({"callbackMethodName": ""})';
+        document.getElementById("ttfund-js-bridge").setAttribute("src",loginurl);
     }
 
     bankSelect(event){
-        if(!$.isInApp()) return false;
-
         const isAppointment = event && event['isAppointment'];
         const laterFun = event &&  event["laterFun"];
         const minBusinLimit = isAppointment ? 0 : (event && event["minBusinLimit"]);
@@ -261,24 +267,32 @@ class NativeBridge{
         const currentInputValue = isAppointment ? 0 : (event && event['currentInputValue']);
 
         const url = 'emfundapp:h5selectpayway({"callbackMethodName":"window.bankinforesult","currentCardNo":"'+currentCardNo+'","isHqb":'+isHqb+',"minPayLimit":'+minBusinLimit+',"currentInputValue":'+currentInputValue+',"isAppointment":'+isAppointment+'})';
-        
+        document.getElementById("ttfund-js-bridge").setAttribute("src",url);
+
         window.bankinforesult = (resultData)=> laterFun && laterFun(resultData);
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",url);
     }
 
     openNewPage(newUrl){
-        if(!$.isInApp()) location.href = newUrl;
-
-        const tempLink = 'emfundapp:gonewpage({"oldwinrelease":false,"noparam":true,"url":"' + encodeURIComponent(newUrl) + '"})';
-        return document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);        
+        if($.isInApp()){
+            const tempLink = 'emfundapp:gonewpage({"oldwinrelease":false,"noparam":true,"url":"' + encodeURIComponent(newUrl) + '"})';
+            document.getElementById("ttfund-js-bridge").setAttribute("src",tempLink);
+        }
+        else
+            location.href = newUrl;
+        
     }
 
     // 定投
-    openInvest(tempFundName,tempFundCode,tempPeriodType="每日(工作日)",tempPeriod="每日(工作日)"){
-        if(!$.isInApp()) return false;
+    openInvest(fundname,fundcode){
+        const tempFundName = fundname;
+        const tempFundCode = fundcode;
+		const tempPeriodType = "每日(工作日)";
+        const tempPeriod = "每日(工作日)";
 
 		const tempLink = 'emfundapp:ttjj-scheduled-oper?periodtype='+ tempPeriodType +'&period='+ tempPeriod +'&name='+ tempFundName +'&id='+ tempFundCode;
-        return document.getElementById("ttfund-js-bridge").src = tempLink;
+
+        if( $.isInApp() )
+            return document.getElementById("ttfund-js-bridge").src = tempLink;
     }
 
 }

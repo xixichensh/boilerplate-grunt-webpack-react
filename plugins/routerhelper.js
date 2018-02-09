@@ -19,46 +19,6 @@ class RouterHelper {
         return parameters;
     }
 
-    saveNativeParam(defaultPageName){
-        
-        const { uid:tempUid,v:tempVersion,lastPage:tempLastPage,zone:tempZone,
-            ctoken:tempCToken,utoken:tempUToken,deviceid:tempdDeviceId,goPage } = common.nativeParam;
-
-        const { lastPageKey,versionKey,uidKey,cTokenKey,uTokenKey,deviceIdKey,zoneKey,pageKey } = common.cacheKeys;
-
-        if(tempLastPage) sessionStorage.setItem(lastPageKey,tempLastPage);
-
-        if(tempVersion) sessionStorage.setItem(versionKey,tempVersion);
-        
-        if(tempUid) sessionStorage.setItem(uidKey,tempUid);
-        
-        if(tempCToken) sessionStorage.setItem(cTokenKey,tempCToken);
-
-        if(tempUToken) sessionStorage.setItem(uTokenKey,tempUToken);
-
-        if(tempdDeviceId) sessionStorage.setItem(deviceIdKey,tempdDeviceId);
-
-        if(tempZone) this.setServerUrl(tempZone);
-
-        sessionStorage.setItem(pageKey + "-" + (goPage || defaultPageName || "" ),JSON.stringify(common.nativeParam));
-
-        return false;
-    }
-
-    /*set server url*/
-    setServerUrl(tempZone) {
-        
-        common.serverList["tradeServer"] =              $.setTradeServer(tempZone);
-        common.serverList["highLevelServer"] =          $.setHighLevelServer(tempZone);
-        
-        common.serverList["marketServer"] =             common.serverList[common.environment]["marketServer"];
-        common.serverList["commonJsUrl"] =              common.serverList[common.environment]["commonJsUrl"];
-        
-        sessionStorage.setItem(common["cacheKeys"].zoneKey,tempZone);
-        
-        return false;
-    }
-
     /* operate move anaimate */
     movePage (event) {
         const callback = event && event["callback"] || (()=>false);
@@ -70,7 +30,7 @@ class RouterHelper {
         
         const targetView = $("#" + goPage);
 
-        $.movePageTo(currentView, targetView, 'move', ()=>callback());
+        $.movePageTo(currentView, targetView, 'none', ()=>callback());
     }
 
     static currentIndex = 99;
